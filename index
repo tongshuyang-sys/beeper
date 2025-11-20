@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Retro Beeper Printer V2</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=VT323&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Courier+Prime&display=swap');
+
+        * {
+            box-sizing: border-box;
+            user-select: none;
+        }
+
+        body {
+            margin: 0;
+            height: 100vh;
+            background-color: lightgoldenrodyellow;
+            /* 网格背景 */
+            background-image: 
+                linear-gradient(rgba(255,255,255,0.05) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255,255,255,0.05) 1px, transparent 1px);
+            background-size: 30px 30px;
+            font-family: 'Courier Prime', monospace;
+            overflow: hidden;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        /* --- 设备容器 --- */
+        .device-container {
+            position: relative;
+            width: 320px;
+            height: 420px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            /* 这里不设背景，背景由上下两部分组成 */
+        }
+
+        /* 设备上半部分 (屏幕区) - 层级最高，盖住纸张源头 */
+        .device-top {
+            width: 100%;
+            height: 280px;
+            background: #dcdcdc;
+            border-radius: 20px 20px 5px 5px;
+            z-index: 20; /* 高层级 */
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+            box-shadow: 
+                inset 2px 2px 5px rgba(255,255,255,0.8),
+                inset -2px -2px 5px rgba(0,0,0,0.2),
+                0 5px 10px rgba(0,0,0,0.3);
+            border-bottom: 4px solid #aaa;
+        }
+
+        /* 设备下半部分 (装饰底座) - 层级最低，纸张从这上面滑过 */
+        .device-bottom {
+            width: 90%;
+            height: 60px;
+            background: #c0c0c0;
+            border-radius: 0 0 20px 20px;
+            z-index: 5; 
+            margin-top: -10px; /* 连接处 */
+            box-shadow: 0 20px 40px rgba(0,0,0,0.4);
+        }
+
+        /* 震动动画 */
+        .shaking {
+            animation: shake 0.2s infinite;
+        }
+        @keyframes shake {
+            0% { transform: translate(0, 0); }
+            25% { transform: translate(1px, 1px); }
+            50% { transform: translate(-1px, -1px); }
+            75% { transform: translate(1px, -1px); }
+            100% { transform: translate(0, 0); }
+        }
+
+        .brand {
+            font-family: 'VT323', monospace;
+            font-size: 28px;
+            color: #444;
+            margin-bottom: 15px;
+            letter-spacing: 3px;
+            font-weight: bold;
+            text-shadow: 0 1px 0 rgba(255,255,255,0.5);
+        }
+
+        /* 屏幕 */
+        .screen {
+            width: 260px;
+            height: 110px;
+            background: #8b9bb4; /* 蓝色背光风格 */
+            border: 5px solid #555;
+            border-radius: 6px;
+            box-shadow: inset 0 0 15px rgba(0,0,0,0.4);
+            padding: 10px;
+            margin-bottom: 20px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        textarea {
+            width: 100%;
+            height: 100%;
+            background: transparent;
+            border: none;
+            outline: none;
+            font-family: 'VT323', monospace;
+            font-size: 22px;
+            color: #101010;
+            resize: none;
+            text-transform: uppercase;
+            line-height: 1.2;
+        }
+
+        textarea::placeholder {
+            color: #4a5a70;
+        }
+
+        /* 按钮组 */
+        .controls {
+            display: flex;
+            gap: 15px;
+            width: 100%;
+            justify-content: center;
+        }
+
+        .btn {
+            height: 50px;
+            border: none;
+            border-radius: 8px;
+            font-family: 'VT323', monospace;
+            font-size: 20px;
+            cursor: pointer;
+            color: white;
+            box-shadow: 0 4px 0 rgba(0,0,0,0.4);
+            transition: transform 0.1s, box-shadow 0.1s;
+        }
+        
+        .btn:active {
+            transform: translateY(4px);
+            box-shadow: 0 0 0 rgba(0,0,0,0);
+        }
+
+        .btn-print {
+            background: #e74c3c;
+            width: 120px;
+        }
+
+        .btn-clear {
+            background: #7f8c8d;
+            width: 60px;
+        }
+
+        /* 出纸口 (视觉装饰) */
+        .slot-visual {
+            position: absolute;
+            bottom: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 240px;
+            height: 8px;
+            background: #222;
+            border-radius: 4px 4px 0 0;
+        }
+
+        /* --- 纸张样式 --- */
+        .paper {
+            position: absolute;
+            width: 220px;
+            background: #fff;
+            color: #333;
+            padding: 15px;
+            font-size: 14px;
+            font-weight: bold;
+            line-height: 1.4;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.15);
+            
+            /* 关键：初始位置 */
+            left: 50%;
+            top: 270px; /* 在上半部分面板的刚好下方 */
+            transform: translateX(-50%) scale(0.9);
+            
+            /* 层级逻辑：
+               1. 打印时：Z=10 (比Top低，比Bottom高) -> 看起来像夹在中间
+               2. 打印完：Z=100 (最高) -> 可以拖拽覆盖设备
+            */
+            z-index: 10; 
+            opacity: 0;
+            transition: top 1s linear, opacity 0.2s;
+        }
+
+        .paper.printing {
+            opacity: 1;
+            /* 打印动画不需要这里写太复杂的transition，JS控制top值 */
+        }
+
+        /* 纸张锯齿边缘 */
+        .paper::after {
+            content: "";
+            position: absolute;
+            bottom: -6px;
+            left: 0;
+            width: 100%;
+            height: 6px;
+            background: radial-gradient(circle, transparent 70%, #fff 75%);
+            background-size: 10px 10px; /* 调整锯齿大小 */
+            background-position: 0 -5px;
+        }
+        
+        /* 打印完变为贴纸 */
+        .paper.sticker {
+            cursor: grab;
+            z-index: 100; /* 提到最前面 */
+            box-shadow: 5px 10px 20px rgba(0,0,0,0.2);
+            transition: transform 0.2s; /* 只有旋转需要过渡 */
+        }
+        
+        .paper.sticker:active {
+            cursor: grabbing;
+            transform: scale(1.05) rotate(var(--rot));
+        }
+
+        .timestamp {
+            margin-top: 10px;
+            font-size: 10px;
+            color: #aaa;
+            border-top: 1px dashed #ddd;
+            padding-top: 5px;
+            text-align: right;
+        }
+
+    </style>
+</head>
+<body>
+
+    <div class="device-container" id="device">
+        <div class="device-top">
+            <div class="brand">MOTOROLA FLEX</div>
+            <div class="screen">
+                <textarea id="input-text" placeholder="ENTER MESSAGE..." maxlength="60"></textarea>
+            </div>
+            <div class="controls">
+                <button class="btn btn-clear" onclick="clearInput()">CLR</button>
+                <button class="btn btn-print" onclick="printReceipt()">PRINT</button>
+            </div>
+            <div class="slot-visual"></div>
+        </div>
+
+        <div class="device-bottom"></div>
+    </div>
+
+    <script>
+        const device = document.getElementById('device');
+        const input = document.getElementById('input-text');
+        let isPrinting = false;
+
+        function clearInput() {
+            input.value = "";
+            input.focus();
+        }
+
+        function printReceipt() {
+            const text = input.value.trim();
+            if (!text) {
+                // 如果为空，稍微震动一下提示
+                device.classList.add('shaking');
+                setTimeout(() => device.classList.remove('shaking'), 200);
+                return;
+            }
+
+            if (isPrinting) return;
+            isPrinting = true;
+
+            // 1. 开始震动
+            device.classList.add('shaking');
+
+            // 2. 创建纸张
+            const paper = document.createElement('div');
+            paper.classList.add('paper');
+            
+            const time = new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+            paper.innerHTML = `
+                <div>${text}</div>
+                <div class="timestamp">${time}</div>
+            `;
+            
+            // 3. 将纸张加入到 body (为了方便后续拖拽到全屏任何位置)
+            // 我们需要计算设备在屏幕上的位置，以确保纸张从设备中间出来
+            const rect = device.getBoundingClientRect();
+            const startTop = rect.top + 270; // 对应 CSS .device-top 的高度附近
+            const startLeft = rect.left + (rect.width / 2);
+
+            paper.style.top = startTop + 'px';
+            paper.style.left = startLeft + 'px';
+
+            document.body.appendChild(paper);
+            
+            // 强制渲染
+            void paper.offsetWidth; 
+
+            paper.classList.add('printing');
+
+            // 4. 计算打印长度 (字越多，纸越长，往下移得越多)
+            // 基础移动 100px + 每行文字增加一点距离
+            const moveDistance = 120 + (text.length * 0.5); 
+            const duration = 2000; // 2秒打印时间
+
+            // 执行动画：往下走
+            paper.style.transition = `top ${duration}ms cubic-bezier(0.25, 1, 0.5, 1)`;
+            paper.style.top = (startTop + moveDistance) + 'px';
+            
+            // 5. 打印结束
+            setTimeout(() => {
+                device.classList.remove('shaking');
+                isPrinting = false;
+                input.value = "";
+
+                // 变为可拖拽状态
+                paper.classList.add('sticker');
+                
+                // 随机旋转一点角度
+                const rot = (Math.random() * 10) - 5;
+                paper.style.setProperty('--rot', rot + 'deg');
+                paper.style.transform = `translateX(-50%) rotate(${rot}deg)`;
+
+                initDrag(paper);
+
+            }, duration);
+        }
+
+        // 简单的拖拽逻辑
+        function initDrag(el) {
+            let startX, startY, initialLeft, initialTop;
+
+            el.addEventListener('mousedown', (e) => {
+                e.preventDefault();
+                // 提到最高层
+                document.querySelectorAll('.paper').forEach(p => p.style.zIndex = 100);
+                el.style.zIndex = 101;
+
+                startX = e.clientX;
+                startY = e.clientY;
+                initialLeft = el.offsetLeft;
+                initialTop = el.offsetTop;
+
+                document.onmousemove = dragMove;
+                document.onmouseup = dragEnd;
+            });
+
+            function dragMove(e) {
+                const dx = e.clientX - startX;
+                const dy = e.clientY - startY;
+                el.style.left = (initialLeft + dx) + 'px';
+                el.style.top = (initialTop + dy) + 'px';
+            }
+
+            function dragEnd() {
+                document.onmousemove = null;
+                document.onmouseup = null;
+            }
+        }
+    </script>
+</body>
+</html>
