@@ -3,46 +3,51 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Retro Beeper Long-Text</title>
+    <title>Retro Printer Final</title>
     <style>
-        /* 引入多种字体以支持多语言混排 */
         @import url('https://fonts.googleapis.com/css2?family=VT323&display=swap');
         @import url('https://fonts.googleapis.com/css2?family=Courier+Prime:wght@400;700&display=swap');
-        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;700&display=swap'); /* 简中 */
-        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;700&display=swap'); /* 日文 */
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;700&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;700&display=swap');
 
         * {
             box-sizing: border-box;
             -webkit-tap-highlight-color: transparent;
-            touch-action: none; /* 关键：接管触摸控制 */
         }
 
         body {
             margin: 0;
-            height: 100vh;
+            /* 允许页面延伸，不再强制锁死一屏 */
+            min-height: 100vh; 
             background-color: #2c3e50;
-            /* 复古网格背景 */
             background-image: 
                 linear-gradient(rgba(255,255,255,0.05) 1px, transparent 1px),
                 linear-gradient(90deg, rgba(255,255,255,0.05) 1px, transparent 1px);
             background-size: 30px 30px;
             font-family: 'Courier Prime', 'Noto Sans SC', 'Noto Sans JP', monospace;
-            overflow: hidden;
+            
+            /* 关键修复：允许背景滚动 */
+            overflow-y: auto; 
+            overflow-x: hidden;
+            
             display: flex;
             justify-content: center;
-            align-items: center;
+            /* 将对齐方式改为顶部对齐，防止小屏时设备被切掉 */
+            align-items: flex-start; 
+            padding-top: 50px; /* 顶部留白 */
+            padding-bottom: 200px; /* 底部留白，给纸张足够的空间 */
         }
 
-        /* --- 设备主体 --- */
         .device-container {
             position: relative;
             width: 320px;
-            /* 高度设为自适应或固定，这里固定即可，纸张会超出 */
             height: 420px;
             display: flex;
             flex-direction: column;
             align-items: center;
             z-index: 20;
+            /* 保证设备本身不会触发没必要的缩放 */
+            flex-shrink: 0; 
         }
 
         .device-top {
@@ -50,7 +55,7 @@
             height: 280px;
             background: #dcdcdc;
             border-radius: 20px 20px 5px 5px;
-            z-index: 50; /* 必须比纸张高 */
+            z-index: 50; 
             position: relative;
             display: flex;
             flex-direction: column;
@@ -68,7 +73,7 @@
             height: 60px;
             background: #c0c0c0;
             border-radius: 0 0 20px 20px;
-            z-index: 5; /* 必须比纸张低 */
+            z-index: 5; 
             margin-top: -10px;
             box-shadow: 0 20px 40px rgba(0,0,0,0.4);
         }
@@ -110,16 +115,13 @@
             border: none;
             outline: none;
             font-family: 'VT323', monospace;
-            font-size: 18px; /* 稍微调小字体以便输入更多 */
+            font-size: 18px;
             color: #101010;
             resize: none;
             line-height: 1.2;
         }
         
-        textarea::placeholder {
-            color: #4a5a70;
-            font-size: 16px;
-        }
+        textarea::placeholder { color: #4a5a70; font-size: 16px; }
 
         .controls {
             display: flex;
@@ -157,34 +159,29 @@
         /* --- 纸张样式 --- */
         .paper {
             position: absolute;
-            width: 230px; /* 稍微加宽 */
+            width: 230px;
             background: #fffdf0;
             color: #222;
-            /* 内边距：上 左右 下(多留点给锯齿) */
             padding: 20px 15px 30px 15px; 
-            font-size: 13px; /* 适合阅读长文的大小 */
+            font-size: 13px;
             line-height: 1.5;
             box-shadow: 0 5px 15px rgba(0,0,0,0.15);
-            
-            /* 文本处理 */
-            white-space: pre-wrap; /* 保留用户输入的换行符 */
-            word-wrap: break-word; /* 防止长单词撑破 */
+            white-space: pre-wrap;
+            word-wrap: break-word;
             font-weight: bold;
             
-            /* 初始定位 */
+            /* 初始隐藏状态 */
             left: 50%;
-            top: 270px; 
             transform: translateX(-50%);
-            
             z-index: 10; 
             opacity: 0;
-            /* 动画过渡 */
-            transition: top 2s linear, opacity 0.2s;
+            transition: top 1.5s linear, opacity 0.2s;
+
+            /* 关键修复：只有纸张禁止浏览器默认行为（滚动），确保可以拖拽 */
+            touch-action: none; 
         }
 
-        .paper.printing {
-            opacity: 1;
-        }
+        .paper.printing { opacity: 1; }
 
         .paper.sticker {
             cursor: grab;
@@ -198,7 +195,6 @@
             transform: scale(1.02) rotate(var(--rot));
         }
 
-        /* 锯齿边缘 */
         .paper::after {
             content: "";
             position: absolute;
@@ -221,7 +217,6 @@
             font-family: 'VT323', monospace;
             text-transform: uppercase;
         }
-
     </style>
 </head>
 <body>
@@ -230,8 +225,7 @@
         <div class="device-top">
             <div class="brand">MOTO-TEXT 5000</div>
             <div class="screen">
-                <textarea id="input-text" placeholder="TYPE ANYTHING HERE...
-(Supports multiline & multi-language)" maxlength="300"></textarea>
+                <textarea id="input-text" placeholder="TYPE HERE..." maxlength="300"></textarea>
             </div>
             <div class="controls">
                 <button class="btn btn-clear" onclick="clearInput()">CLR</button>
@@ -253,9 +247,7 @@
         }
 
         function printReceipt() {
-            // 获取原文，不去掉换行符
             const text = input.value;
-            
             if (!text.trim()) {
                 device.classList.add('shaking');
                 setTimeout(() => device.classList.remove('shaking'), 200);
@@ -269,71 +261,62 @@
             const paper = document.createElement('div');
             paper.classList.add('paper');
             
-            // 生成内容：直接显示用户输入的文本 + 底部时间戳
             const timeStr = new Date().toLocaleString();
-            paper.innerHTML = `
-                <div>${text}</div>
-                <div class="paper-footer">${timeStr}</div>
-            `;
+            paper.innerHTML = `<div>${text}</div><div class="paper-footer">${timeStr}</div>`;
 
-            // --- 关键逻辑：动态计算高度 ---
-            // 1. 先把纸张放到 DOM 里（此时它是透明的 opacity:0）
-            //    我们需要把它放到 DOM 里才能计算出有了这堆文字后，纸到底有多长
+            // 获取设备位置（因为现在页面可以滚动，所以要计算 accurately）
             const rect = device.getBoundingClientRect();
-            const startTop = rect.top + 270; 
-            const startLeft = rect.left + (rect.width / 2);
+            
+            // 计算初始 top 值：
+            // 注意：在页面可滚动的情况下，absolute 元素的 top 是相对于 offsetParent (body) 的
+            // 所以我们要加上 window.scrollY
+            const deviceTopRelativeToDoc = rect.top + window.scrollY;
+            const deviceLeftRelativeToDoc = rect.left + (rect.width / 2);
+            
+            const startTop = deviceTopRelativeToDoc + 270; 
 
             paper.style.top = startTop + 'px';
-            paper.style.left = startLeft + 'px';
+            paper.style.left = deviceLeftRelativeToDoc + 'px'; // 这里用JS设置初始left
             
             document.body.appendChild(paper);
             
-            // 2. 获取纸张生成的实际高度
             const paperHeight = paper.offsetHeight;
-            
-            // 3. 开始动画
-            void paper.offsetWidth; // 强制重绘
+            void paper.offsetWidth; 
             paper.classList.add('printing');
 
-            // 计算需要吐出多长：纸张高度 + 一点余量(20px)让它完全离开出纸口
-            // 如果纸张很短，至少也要吐出 100px
             let moveDistance = Math.max(paperHeight + 20, 100);
-            
-            // 动态调整打印时间：字越多打得越久，更有真实感
-            // 基础 1.5秒 + 每100px高度增加 0.5秒
             const duration = 1500 + (paperHeight / 100) * 500;
 
-            paper.style.transition = `top ${duration}ms linear`; // 使用 linear 匀速更有打印机的机械感
+            // 更新动画目标 Top
+            paper.style.transition = `top ${duration}ms linear`;
             paper.style.top = (startTop + moveDistance) + 'px';
 
             setTimeout(() => {
                 device.classList.remove('shaking');
                 isPrinting = false;
-                input.value = ""; // 打印完清空
+                input.value = "";
                 
                 paper.classList.add('sticker');
-                
                 const rot = (Math.random() * 6) - 3;
                 paper.style.setProperty('--rot', rot + 'deg');
                 paper.style.transform = `translateX(-50%) rotate(${rot}deg)`;
                 
-                // 激活拖拽
                 initUniversalDrag(paper);
-
             }, duration);
         }
 
-        // --- 全能拖拽函数 (鼠标 + 触摸) ---
         function initUniversalDrag(el) {
             let startX, startY, initialLeft, initialTop;
 
             const startDrag = (e) => {
-                // 仅在非触摸设备上阻止默认，触摸设备单独处理
+                // 触摸时：因为我们在 CSS 里对 .paper 设置了 touch-action: none
+                // 浏览器会自动知道在这个元素上不要滚动页面，所以这里甚至不需要 preventDefault
+                // 但为了保险起见，防止文本被选中等副作用，保留 preventDefault
                 if (e.type !== 'touchstart') {
                     e.preventDefault();
                 }
-                
-                // 层级置顶
+
+                // 提升层级
                 document.querySelectorAll('.paper').forEach(p => p.style.zIndex = 100);
                 el.style.zIndex = 101;
 
@@ -355,7 +338,7 @@
             };
 
             const moveDrag = (e) => {
-                // 关键：阻止屏幕滚动，让纸张跟随手指
+                // 阻止事件冒泡，防止触发浏览器的其他手势
                 if(e.cancelable) e.preventDefault(); 
 
                 const clientX = e.type === 'touchmove' ? e.touches[0].clientX : e.clientX;
